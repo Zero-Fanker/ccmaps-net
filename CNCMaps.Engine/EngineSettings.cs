@@ -394,7 +394,9 @@ namespace CNCMaps.Engine {
 		public static string DetermineMapName(MapFile map, EngineType engine) {
 			string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(map.FileName);
 
-			IniFile.IniSection basic = map.GetSection("Basic");
+            return "prv_"+fileNameWithoutExtension.Substring(2); 
+#if false
+            IniFile.IniSection basic = map.GetSection("Basic");
 			if (basic.ReadBool("Official") == false)
 				return StripPlayersFromName(MakeValidFileName(basic.ReadString("Name", fileNameWithoutExtension)));
 
@@ -553,7 +555,8 @@ namespace CNCMaps.Engine {
 
 			mapName = StripPlayersFromName(MakeValidFileName(mapName)).Replace("  ", " ");
 			return mapName;
-		}
+#endif
+        }
 
 		private static string StripPlayersFromName(string mapName) {
 			if (mapName.IndexOf(" (") != -1)
