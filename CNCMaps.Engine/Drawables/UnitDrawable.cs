@@ -12,11 +12,11 @@ namespace CNCMaps.Engine.Game {
 		public UnitDrawable(IniFile.IniSection rules, IniFile.IniSection art)
 			: base(rules, art) { }
 
-		public override void LoadFromRules() {
+        public override void LoadFromRules() {
 			base.LoadFromArtEssential();
 
             ShpDrawable shp = null;
-            VoxelDrawable vxl = null;
+            VoxelDrawable vxl = null;            
 
             if (IsVoxel)
             {
@@ -43,22 +43,23 @@ namespace CNCMaps.Engine.Game {
             {
                 if (Rules.ReadBool("Turret"))
                 {
-
                     VoxelDrawable vxlturret = null;
                     ShpDrawable shpturret = null;
-                    var turretVxl = VFS.Open<VxlFile>(Image + "TUR.vxl");
-                    var turretHva = VFS.Open<HvaFile>(Image + "TUR.hva");
 
-                    if (turretVxl != null && turretHva != null)
-                    {
-                        vxlturret = new VoxelDrawable(turretVxl, turretHva);
-                        vxlturret.Props.Offset = Props.Offset;
-                        vxlturret.Props.Offset += new Size(Rules.ReadInt("TurretAnimX"), Rules.ReadInt("TurretAnimY"));
-                        vxlturret.Props.TurretVoxelOffset = Art.ReadFloat("TurretOffset");
-                        vxlturret.Props.Cloakable = Props.Cloakable;
-                        SubDrawables.Add(vxlturret);
+                    if(Art.ReadBool("Voxel")) {
+                        var turretVxl = VFS.Open<VxlFile>(Image + "TUR.vxl");
+                        var turretHva = VFS.Open<HvaFile>(Image + "TUR.hva");
+
+                        if (turretVxl != null && turretHva != null) {
+                            vxlturret = new VoxelDrawable(turretVxl, turretHva);
+                            vxlturret.Props.Offset = Props.Offset;
+                            vxlturret.Props.Offset += new Size(Rules.ReadInt("TurretAnimX"), Rules.ReadInt("TurretAnimY"));
+                            vxlturret.Props.TurretVoxelOffset = Art.ReadFloat("TurretOffset");
+                            vxlturret.Props.Cloakable = Props.Cloakable;
+                            SubDrawables.Add(vxlturret);
+                        }
                     }
-
+                    
                     if (vxlturret == null && shp != null)
                     {
                         shpturret = new ShpDrawable(Rules, Art);
