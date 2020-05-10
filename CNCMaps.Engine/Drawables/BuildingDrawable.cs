@@ -246,8 +246,8 @@ namespace CNCMaps.Engine.Game {
 				IniFile.IniSection fireArt = OwnerCollection.Art.GetOrCreateSection(fireAnim);
 
 				var fire = new AnimDrawable(Rules, Art, VFS.Open<ShpFile>(fireAnim + ".shp"));
-				fire.Props.PaletteOverride = GetFireAnimPalette(fireArt);
-				fire.Props.Offset = new Point(Int32.Parse(coords[0]) + (TileWidth / 2), Int32.Parse(coords[1]));
+				fire.Props.PaletteOverride = GetCustomPalette(fireArt);
+				fire.Props.Offset = new Point(Int32.Parse(coords[0]), Int32.Parse(coords[1]));
 				fire.Props.FrameDecider = FrameDeciders.RandomFrameDecider;
 				_fires.Add(fire);
 			}
@@ -258,7 +258,7 @@ namespace CNCMaps.Engine.Game {
 		 * use different name for the flag declaring the palette. (NPatch uses 'Palette' whilst Ares uses 'CustomPalette' to make it distinct
 		 * from the custom object palettes).
 		 */
-		private Palette GetFireAnimPalette(IniFile.IniSection animation) {
+		private Palette GetCustomPalette(IniFile.IniSection animation) {
             // Starkku: Altered as a part of a fix for crash that happened if custom palette was declared but file wasn't there.
             Palette pal = null;
             if (animation.ReadString("Palette") != "")
