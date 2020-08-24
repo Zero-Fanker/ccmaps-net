@@ -6,13 +6,15 @@ using CNCMaps.Engine.Map;
 using CNCMaps.Engine.Rendering;
 using CNCMaps.FileFormats;
 using CNCMaps.FileFormats.VirtualFileSystem;
+using NLog;
 
 namespace CNCMaps.Engine.Game {
 	internal class TerrainDrawable : Drawable {
 
 		private ShpDrawable terrainShp;
+        static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-		public TerrainDrawable(IniFile.IniSection rules, IniFile.IniSection art)
+        public TerrainDrawable(IniFile.IniSection rules, IniFile.IniSection art)
 			: base(rules, art) { }
 
 		public override void LoadFromRules() {
@@ -36,7 +38,13 @@ namespace CNCMaps.Engine.Game {
 		}
 
 		public override Rectangle GetBounds(GameObject obj) {
-			if (InvisibleInGame || terrainShp.Shp == null) return Rectangle.Empty;
+            if (InvisibleInGame) {
+                return Rectangle.Empty;
+            }
+            if (terrainShp == null || terrainShp.Shp == null) {
+                Logger.Debug("TerrainDrawable {0} image not found", Name);
+                return Rectangle.Empty;
+            }
 
 			var bounds = ShpRenderer.GetBounds(obj, terrainShp.Shp, Props);
 			bounds.Offset(obj.Tile.Dx * TileWidth / 2, (obj.Tile.Dy - obj.Tile.Z) * TileHeight / 2);

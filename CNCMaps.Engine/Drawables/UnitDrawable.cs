@@ -46,7 +46,7 @@ namespace CNCMaps.Engine.Game {
                     VoxelDrawable vxlturret = null;
                     ShpDrawable shpturret = null;
 
-                    if(Art.ReadBool("Voxel")) {
+                    if(IsVoxel) {
                         var turretVxl = VFS.Open<VxlFile>(Image + "TUR.vxl");
                         var turretHva = VFS.Open<HvaFile>(Image + "TUR.hva");
 
