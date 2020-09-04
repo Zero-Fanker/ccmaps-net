@@ -1,16 +1,12 @@
 using System;
-using System.Collections.Generic;
 using CNCMaps.Engine.Map;
 using CNCMaps.Engine.Rendering;
-using CNCMaps.Engine.Utility;
 using CNCMaps.FileFormats;
 using CNCMaps.Shared;
 using CNCMaps.Shared.Utility;
-using NLog;
 
 namespace CNCMaps.Engine.Game {
 	public static class FrameDeciders {
-		public static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
 		/// <summary>
 		/// Building turrets
@@ -43,9 +39,9 @@ namespace CNCMaps.Engine.Game {
 		/// For non-animated building parts that show frame 0/1 for damaged buildings based on ConditionYellow/ConditionRed values
 		/// </summary>
 		public static Func<GameObject, int> BaseBuildingFrameDecider(bool isDamaged) {
-			return delegate(GameObject obj) {
+			return delegate (GameObject obj) {
 				if (isDamaged) return 1;
-				else 	return 0;
+				else return 0;
 			};
 		}
 
@@ -53,7 +49,7 @@ namespace CNCMaps.Engine.Game {
 		/// For RA2/YR buildings with rubble and health set to 0 in maps. Mostly 4th frame but selecting last normal frame
 		/// </summary>
 		public static Func<GameObject, int> BuildingRubbleFrameDecider(int totalFrames) {
-			return delegate(GameObject obj) {
+			return delegate (GameObject obj) {
 				int frameNum = 0;
 				if (totalFrames >= 8)
 					frameNum = (totalFrames / 2) - 1;
@@ -66,7 +62,7 @@ namespace CNCMaps.Engine.Game {
 		/// </summary>
 		/// <returns>A framedecider between loopend and loopstart</returns>
 		public static Func<GameObject, int> LoopFrameDecider(int loopstart, int loopend) {
-			return delegate(GameObject obj) {
+			return delegate (GameObject obj) {
 				// loopstart > loopend is possible
 				return Math.Min(loopstart, loopend) + Rand.Next(Math.Abs(loopend - loopstart));
 			};
@@ -90,7 +86,7 @@ namespace CNCMaps.Engine.Game {
 		public static Func<GameObject, int> NullFrameDecider = arg => 0;
 
 		public static Func<GameObject, int> AlphaImageFrameDecider(ShpFile shp) {
-			return delegate(GameObject obj) {
+			return delegate (GameObject obj) {
 				int direction = 0;
 				if (obj is OwnableObject)
 					direction = (obj as OwnableObject).Direction;
@@ -103,13 +99,11 @@ namespace CNCMaps.Engine.Game {
 			};
 		}
 
-        // Starkku: Necessary due to SHP vehicles not obeying the unwritten rule that infantry have with standing frames coming first.
-        // Plus the frame order is different compared to infantry.
-        public static Func<GameObject, int> SHPVehicleFrameDecider(int StartStandFrame, int StandingFrames, int StartWalkFrame, int WalkFrames, int Facings)
-        {
-            return delegate(GameObject obj)
-            {
-                int direction = 0;
+		// SHP vehicles and infantry behave differently, so they require different frame decider logic.
+		// This is due to SHP vehicles not obeying the unwritten rule that infantry have standing frames coming first.
+		public static Func<GameObject, int> SHPVehicleFrameDecider(int StartStandFrame, int StandingFrames, int StartWalkFrame, int WalkFrames, int Facings, EngineType engine) {
+			return delegate (GameObject obj) {
+				int direction = 0;
 				int frameoffset = 0;
 				int framenumber = 0;
 
@@ -122,7 +116,7 @@ namespace CNCMaps.Engine.Game {
 				}
 
 				if (Facings == 32) {
-					if (ModConfig.ActiveConfig.Engine < EngineType.RedAlert2) {
+					if (engine < EngineType.RedAlert2) {
 						frameoffset = (direction / 8) + 1;
 						if (frameoffset >= 32) frameoffset -= 32;
 					}
@@ -141,19 +135,18 @@ namespace CNCMaps.Engine.Game {
 					framenumber = StartStandFrame + (frameoffset * StandingFrames);
 
 				return framenumber;
-            };
-        }
+			};
+		}
 
-        public static Func<GameObject, int> SHPVehicleSHPTurretFrameDecider(int StartWalkFrame, int WalkFrames, int Facings)
-        {
-            return delegate(GameObject obj) {
-                int direction = 0;
+		public static Func<GameObject, int> SHPVehicleSHPTurretFrameDecider(int StartWalkFrame, int WalkFrames, int Facings) {
+			return delegate (GameObject obj) {
+				int direction = 0;
 				int frameoffset = 0;
 				int framenumber = 0;
 
 				if (obj is OwnableObject)
 					direction = (obj as OwnableObject).Direction;
-				
+
 				frameoffset = (direction / 8) + 4;
 				if (frameoffset >= 32) frameoffset -= 32;
 
@@ -166,46 +159,22 @@ namespace CNCMaps.Engine.Game {
 				}
 
 				return framenumber;
-            };
-        }
+			};
+		}
 
-        // Starkku: DirectionBasedFrameDecider does not actually get infantry facings right (it displays them in same way as FA2 does, which is wrong).
-        public static Func<GameObject, int> InfantryFrameDecider(int Ready_Start = 0, int Ready_Count = 1, int Ready_CountNext = 1, int randomFacing = -1)
-        {
-            return delegate(GameObject obj)
-            {
-                int val = 0;
-                int direction = 0;
-                if (obj is OwnableObject)
-                    direction = (obj as OwnableObject).Direction;
+		// DirectionBasedFrameDecider does not actually get infantry facings right (it displays them in same way as FA2 does, which is wrong).
+		public static Func<GameObject, int> InfantryFrameDecider(int Ready_Start = 0, int Ready_Count = 1, int Ready_CountNext = 1, int randomFacing = -1) {
+			return delegate (GameObject obj) {
+				int val = 0;
+				int direction = 0;
+				if (obj is OwnableObject)
+					direction = (obj as OwnableObject).Direction;
 				if (randomFacing >= 0)
 					direction = randomFacing;
-                if (Ready_Count > 0) val = Ready_Start + Ready_CountNext * (7 - (direction / 32));
-                return val;
-            };
-        }
-
-		private static Dictionary<ObjectOverride, Func<GameObject, int>> cachedDeciders =
-			new Dictionary<ObjectOverride, Func<GameObject, int>>();
-/*		public static Func<GameObject, int> GetOverrideFrameDecider(ObjectOverride ovr) {
-			Func<GameObject, int> fd;
-			if (!cachedDeciders.TryGetValue(ovr, out fd)) {
-				cachedDeciders[ovr] = fd = FrameDeciderCompiler.CompileFrameDecider(ovr.FrameDeciderCode);
-			}
-			return fd;
-		}
-*/
-		/*
-		public static Func<GameObject, int> CreateCacher(Func<GameObject, int> wrap) {
-			int cachedFrame = -1;
-			return delegate(GameObject obj) {
-				if (cachedFrame == -1 || obj.RequiresFrameInvalidation) {
-					cachedFrame = wrap(obj);
-					obj.RequiresFrameInvalidation = false;
-				}
-				return cachedFrame;
+				if (Ready_Count > 0) val = Ready_Start + Ready_CountNext * (7 - (direction / 32));
+				return val;
 			};
-		}*/
-
+		}
+		
 	}
 }

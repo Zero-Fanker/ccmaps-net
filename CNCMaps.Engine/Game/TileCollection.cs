@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using CNCMaps.Engine.Drawables;
@@ -156,25 +156,18 @@ namespace CNCMaps.Engine.Game {
 
 		private int _animsSectionsStartIdx = -1;
 
-		public TileCollection(TheaterSettings ths, IniFile theaterIni)
-			: base() {
-			_theaterSettings = ths;
-			_theaterIni = theaterIni;
-		}
-
-		public TileCollection(CollectionType type, TheaterType theater, EngineType engine, IniFile rules, IniFile art,
-			TheaterSettings theaterSettings, IniFile theaterIni=null)
-			: base(type, theater, engine, rules, art) {
-
+		public TileCollection(TheaterType theater, ModConfig config, VirtualFileSystem vfs, IniFile rules, IniFile art, TheaterSettings theaterSettings, IniFile theaterIni = null)
+			: base(CollectionType.Tiles, theater, config, vfs, rules, art) {
 			_theaterSettings = theaterSettings;
 			if (theaterIni == null) {
-				_theaterIni = VFS.Open<IniFile>(theaterSettings.TheaterIni);
+				_theaterIni = _vfs.Open<IniFile>(theaterSettings.TheaterIni);
 				if (_theaterIni == null) {
 					Logger.Warn("Unavailable theater loaded, theater.ini not found");
 					return;
 				}
 			}
-			else _theaterIni = theaterIni;
+			else
+				_theaterIni = theaterIni;
 
 			#region Set numbers
 
@@ -282,9 +275,9 @@ namespace CNCMaps.Engine.Game {
 						string filename = ts.FileName + j.ToString("00");
 						if (r >= 'a') filename += r;
 						filename += _theaterSettings.Extension;
-						var tmpFile = VFS.Open<TmpFile>(filename);
+						var tmpFile = _vfs.Open<TmpFile>(filename);
 						if (tmpFile == null && _theaterSettings.Type == TheaterType.NewUrban) {
-							tmpFile = VFS.Open<TmpFile>(filename.Replace(".ubn", ".urb"));
+							tmpFile = _vfs.Open<TmpFile>(filename.Replace(".ubn", ".urb"));
 						}
 						if (tmpFile != null) rs.AddTile(tmpFile);
 						else break;
@@ -302,7 +295,7 @@ namespace CNCMaps.Engine.Game {
 		}
 
 		protected override Drawable MakeDrawable(string objName) {
-			return new TileDrawable(null, null, null) { Name = objName };
+			return new TileDrawable(_config, _vfs, null, null, null) { Name = objName };
 		}
 
 		public void InitAnimations(ObjectCollection animations) {
@@ -324,14 +317,14 @@ namespace CNCMaps.Engine.Game {
 
 					// clone, so that the tile-specific offset doesn't require setting on the original 
 					// drawable, meaning it can be reused
-					drawable = drawable.Clone();
+					var drawableClone = drawable.Clone();
 
 					// in pixels
 					int attachTo = extraSection.ReadInt(n + "AttachesTo");
 					var offset = new Point(extraSection.ReadInt(n + "XOffset"), extraSection.ReadInt(n + "YOffset"));
-					drawable.Props.Offset.Offset(offset.X, offset.Y);
-					drawable.Props.ZAdjust = extraSection.ReadInt(n + "ZAdjust");
-					tileSet.Entries[a - 1].AddAnimation(attachTo, drawable);
+					drawableClone.Props.Offset.Offset(offset.X, offset.Y);
+					drawableClone.Props.ZAdjust = extraSection.ReadInt(n + "ZAdjust");
+					tileSet.Entries[a - 1].AddAnimation(attachTo, drawableClone);
 				}
 			}
 		}

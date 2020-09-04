@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Drawing;
 using CNCMaps.Engine.Drawables;
+using CNCMaps.Engine.Game;
 using CNCMaps.Engine.Map;
 using CNCMaps.FileFormats;
 using CNCMaps.FileFormats.VirtualFileSystem;
@@ -12,7 +13,17 @@ namespace CNCMaps.Engine.Rendering {
 	class ShpRenderer {
 		private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-		public static Rectangle GetBounds(GameObject obj, ShpFile shp, DrawProperties props) {
+		private bool _noBuildingZAvailable = false;
+		private readonly ModConfig _config;
+		private readonly VirtualFileSystem _vfs;
+		private ShpFile BuildingZ;
+
+		public ShpRenderer(ModConfig config, VirtualFileSystem vfs) {
+			_config = config;
+			_vfs = vfs;
+		}
+
+		public Rectangle GetBounds(GameObject obj, ShpFile shp, DrawProperties props) {
 			shp.Initialize();
 			int frameIndex = DecideFrameIndex(props.FrameDecider(obj), shp.NumImages);
 			var offset = new Point(-shp.Width / 2, -shp.Height / 2);
@@ -25,7 +36,7 @@ namespace CNCMaps.Engine.Rendering {
 			return new Rectangle(offset, size);
 		}
 
-		unsafe public static void Draw(ShpFile shp, GameObject obj, Drawable dr, DrawProperties props, DrawingSurface ds, int transLucency = 0) {
+		public unsafe void Draw(ShpFile shp, GameObject obj, Drawable dr, DrawProperties props, DrawingSurface ds, int transLucency = 0) {
 			shp.Initialize();
 			Palette p = props.PaletteOverride ?? obj.Palette;
 			int frameIndex = props.FrameDecider(obj);
@@ -41,8 +52,8 @@ namespace CNCMaps.Engine.Rendering {
 				return;
 
 			Point offset = props.GetOffset(obj);
-			offset.X += obj.Tile.Dx * Drawable.TileWidth / 2 - shp.Width / 2 + img.X;
-			offset.Y += (obj.Tile.Dy - obj.Tile.Z) * Drawable.TileHeight / 2 - shp.Height / 2 + img.Y;
+			offset.X += obj.Tile.Dx * _config.TileWidth / 2 - shp.Width / 2 + img.X;
+			offset.Y += (obj.Tile.Dy - obj.Tile.Z) * _config.TileHeight / 2 - shp.Height / 2 + img.Y;
 			Logger.Trace("Drawing SHP file {0} (Frame {1}) at ({2},{3})", shp.FileName, frameIndex, offset.X, offset.Y);
 
 			int stride = ds.BitmapData.Stride;
@@ -60,8 +71,8 @@ namespace CNCMaps.Engine.Rendering {
 
 			int rIdx = 0; // image pixel index
 			int zIdx = offset.X + offset.Y * ds.Width; // z-buffer pixel index
-			short hBufVal = (short)(obj.Tile.Z * Drawable.TileHeight / 2);
-            short zOffset = (short)((obj.BottomTile.Rx + obj.BottomTile.Ry) * Drawable.TileHeight / 2 + props.ZAdjust);
+			short hBufVal = (short)(obj.Tile.Z * _config.TileHeight / 2);
+			short zOffset = (short)((obj.BottomTile.Rx + obj.BottomTile.Ry) * _config.TileHeight / 2 + props.ZAdjust);
 
 			if (!dr.Flat)
 				hBufVal += shp.Height;
@@ -78,7 +89,7 @@ namespace CNCMaps.Engine.Rendering {
 					byte paletteValue = imgData[rIdx];
 
 					short zshapeOffset = obj is StructureObject ? (GetBuildingZ(x, y, shp, img, obj)) : (short)0;
-					
+
 					if (paletteValue != 0) {
 						short zBufVal = zOffset;
 						if (dr.Flat)
@@ -126,8 +137,7 @@ namespace CNCMaps.Engine.Rendering {
 			}
 		}
 
-
-		public static unsafe void DrawShadow(GameObject obj, ShpFile shp, DrawProperties props, DrawingSurface ds) {
+		public unsafe void DrawShadow(GameObject obj, ShpFile shp, DrawProperties props, DrawingSurface ds) {
 			shp.Initialize();
 			int frameIndex = props.FrameDecider(obj);
 			if (obj.Drawable.IsActualWall)
@@ -143,8 +153,8 @@ namespace CNCMaps.Engine.Rendering {
 				return;
 
 			Point offset = props.GetShadowOffset(obj);
-			offset.X += obj.Tile.Dx * Drawable.TileWidth / 2 - shp.Width / 2 + img.X;
-			offset.Y += (obj.Tile.Dy - obj.Tile.Z) * Drawable.TileHeight / 2 - shp.Height / 2 + img.Y;
+			offset.X += obj.Tile.Dx * _config.TileWidth / 2 - shp.Width / 2 + img.X;
+			offset.Y += (obj.Tile.Dy - obj.Tile.Z) * _config.TileHeight / 2 - shp.Height / 2 + img.Y;
 			Logger.Trace("Drawing SHP shadow {0} (frame {1}) at ({2},{3})", shp.FileName, frameIndex, offset.X, offset.Y);
 
 			int stride = ds.BitmapData.Stride;
@@ -158,11 +168,11 @@ namespace CNCMaps.Engine.Rendering {
 			byte* w = (byte*)ds.BitmapData.Scan0 + offset.X * 3 + stride * offset.Y;
 			int zIdx = offset.X + offset.Y * ds.Width;
 			int rIdx = 0;
-			short zOffset = (short)((obj.Tile.Rx + obj.Tile.Ry) * Drawable.TileHeight / 2 - shp.Height / 2 + img.Y);
-			int castHeight = obj.Tile.Z * Drawable.TileHeight / 2;
+			short zOffset = (short)((obj.Tile.Rx + obj.Tile.Ry) * _config.TileHeight / 2 - shp.Height / 2 + img.Y);
+			int castHeight = obj.Tile.Z * _config.TileHeight / 2;
 			if (obj.Drawable != null && !obj.Drawable.Flat) {
 				castHeight += shp.Height;
-				castHeight += obj.Drawable.TileElevation * Drawable.TileHeight / 2;
+				castHeight += obj.Drawable.TileElevation * _config.TileHeight / 2;
 			}
 
 			for (int y = 0; y < img.Height; y++) {
@@ -180,11 +190,11 @@ namespace CNCMaps.Engine.Rendering {
 					zBufVal += img.Height;
 
 				for (int x = 0; x < img.Width; x++) {
-					if (0 <= offset.X + x && offset.X + x < ds.Width && 0 <= y + offset.Y && y + offset.Y < ds.Height
-						&& imgData[rIdx] != 0 && !shadows[zIdx] 
-						//&& zBufVal >= zBuffer[zIdx] 
-						&& castHeight >= heightBuffer[zIdx]
-						) {
+					if (0 <= offset.X + x && offset.X + x < ds.Width && 0 <= y + offset.Y && y + offset.Y < ds.Height &&
+						imgData[rIdx] != 0 && !shadows[zIdx] &&
+						// zBufVal >= zBuffer[zIdx] &&
+						castHeight >= heightBuffer[zIdx]) {
+
 						*(w + 0) /= 2;
 						*(w + 1) /= 2;
 						*(w + 2) /= 2;
@@ -195,17 +205,16 @@ namespace CNCMaps.Engine.Rendering {
 					zIdx++;
 					w += 3;
 				}
-				w += stride - 3 * img.Width;	// ... and if we're no more on the same row,
+				w += stride - 3 * img.Width;    // ... and if we're no more on the same row,
 				zIdx += ds.Width - img.Width;
 				// adjust the writing pointer accordingy
 			}
 		}
 
-		unsafe public static void DrawAlpha(GameObject obj, ShpFile shp, DrawProperties props, DrawingSurface ds) {
+		public unsafe void DrawAlpha(GameObject obj, ShpFile shp, DrawProperties props, DrawingSurface ds) {
 			shp.Initialize();
 
-			// Change originally implemented by Starkku: Ares supports multiframe AlphaImages, based on frame count 
-			// the direction the unit it facing.
+			// Ares supports multiframe AlphaImages, based on frame count and the direction the unit it facing.
 			int frameIndex = props.FrameDecider(obj);
 
 			var img = shp.GetImage(frameIndex);
@@ -215,18 +224,18 @@ namespace CNCMaps.Engine.Rendering {
 				return;
 
 			Point offset = props.GetOffset(obj);
-			offset.X += obj.Tile.Dx * Drawable.TileWidth / 2;
-			offset.Y += (obj.Tile.Dy - obj.Tile.Z) * Drawable.TileHeight / 2;
+			offset.X += obj.Tile.Dx * _config.TileWidth / 2;
+			offset.Y += (obj.Tile.Dy - obj.Tile.Z) * _config.TileHeight / 2;
 			Logger.Trace("Drawing AlphaImage SHP file {0} (frame {1}) at ({2},{3})", shp.FileName, frameIndex, offset.X, offset.Y);
 
 			int stride = ds.BitmapData.Stride;
 			var w_low = (byte*)ds.BitmapData.Scan0;
 			byte* w_high = (byte*)ds.BitmapData.Scan0 + stride * ds.BitmapData.Height;
 
-			int dx = offset.X + Drawable.TileWidth / 2 - shp.Width / 2 + img.X,
+			int dx = offset.X + _config.TileWidth / 2 - shp.Width / 2 + img.X,
 				dy = offset.Y - shp.Height / 2 + img.Y;
 			byte* w = (byte*)ds.BitmapData.Scan0 + dx * 3 + stride * dy;
-            short zOffset = (short)((obj.Tile.Rx + obj.Tile.Ry) * Drawable.TileHeight / 2 - shp.Height / 2 + img.Y + props.ZAdjust);
+			short zOffset = (short)((obj.Tile.Rx + obj.Tile.Ry) * _config.TileHeight / 2 - shp.Height / 2 + img.Y + props.ZAdjust);
 			int rIdx = 0;
 
 			for (int y = 0; y < img.Height; y++) {
@@ -241,8 +250,8 @@ namespace CNCMaps.Engine.Rendering {
 					rIdx++;
 					w += 3;
 				}
-				w += stride - 3 * img.Width;	// ... and if we're no more on the same row,
-				// adjust the writing pointer accordingy
+				w += stride - 3 * img.Width;    // ... and if we're no more on the same row,
+												// adjust the writing pointer accordingly
 			}
 		}
 
@@ -265,17 +274,15 @@ namespace CNCMaps.Engine.Rendering {
 			return frameIndex;
 		}
 
-		static ShpFile BuildingZ;
-		private static bool _noBuildingZAvailable = false;
-		private static short GetBuildingZ(int x, int y, ShpFile shp, ShpFile.ShpImage img, GameObject obj) {
+		private short GetBuildingZ(int x, int y, ShpFile shp, ShpFile.ShpImage img, GameObject obj) {
 			if (_noBuildingZAvailable)
 				return 0;
-			
+
 			else if (BuildingZ == null) {
-				if (ModConfig.ActiveConfig.Engine < EngineType.YurisRevenge)
-					BuildingZ = VFS.Open<ShpFile>("buildngz.shp");
+				if (_config.Engine < EngineType.YurisRevenge)
+					BuildingZ = _vfs.Open<ShpFile>("buildngz.shp");
 				else // Yuri's Revenge uses .sha as a file extension for this
-					BuildingZ = VFS.Open<ShpFile>("buildngz.sha");
+					BuildingZ = _vfs.Open<ShpFile>("buildngz.sha");
 				if (BuildingZ != null)
 					BuildingZ.Initialize();
 				else
@@ -287,10 +294,10 @@ namespace CNCMaps.Engine.Rendering {
 
 			// center x
 			x += zImg.Width / 2 - shp.Width / 2 + img.X;
-			
+
 			// correct for foundation
 			x -= (obj.Drawable.Foundation.Width - obj.Drawable.Foundation.Height) * 30;
-			
+
 			// add zshapepointmove
 			x += obj.Drawable.Props.ZShapePointMove.X;
 
@@ -302,7 +309,7 @@ namespace CNCMaps.Engine.Rendering {
 
 			x = Math.Min(zImg.Width - 1, Math.Max(0, x));
 			y = Math.Min(zImg.Height - 1, Math.Max(0, y));
-			
+
 			return (short)(-64 + zData[y * zImg.Width + x]);
 		}
 

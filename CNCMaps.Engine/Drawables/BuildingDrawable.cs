@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using CNCMaps.Engine.Drawables;
+using CNCMaps.Engine.Game;
 using CNCMaps.Engine.Map;
 using CNCMaps.Engine.Rendering;
 using CNCMaps.FileFormats;
@@ -10,13 +10,13 @@ using CNCMaps.FileFormats.VirtualFileSystem;
 using CNCMaps.Shared;
 using CNCMaps.Shared.Utility;
 
-namespace CNCMaps.Engine.Game {
+namespace CNCMaps.Engine.Drawables {
 	class BuildingDrawable : Drawable {
 
 		#region crap
 		private static readonly string[] LampNames = {
 			"REDLAMP", "BLUELAMP", "GRENLAMP", "YELWLAMP", "PURPLAMP", "INORANLAMP", "INGRNLMP", "INREDLMP", "INBLULMP",
-			"INGALITE", "GALITE", "TSTLAMP", 
+			"INGALITE", "GALITE", "TSTLAMP",
 			"INYELWLAMP", "INPURPLAMP", "NEGLAMP", "NERGRED", "TEMMORLAMP", "TEMPDAYLAMP", "TEMDAYLAMP", "TEMDUSLAMP",
 			"TEMNITLAMP", "SNOMORLAMP",
 			"SNODAYLAMP", "SNODUSLAMP", "SNONITLAMP"
@@ -43,15 +43,13 @@ namespace CNCMaps.Engine.Game {
 		private readonly List<AnimDrawable> _anims = new List<AnimDrawable>();
 		private readonly List<AnimDrawable> _animsDamaged = new List<AnimDrawable>();
 		private readonly List<AnimDrawable> _fires = new List<AnimDrawable>();
-		private Random _random;
 		private bool _canBeOccupied;
 		private int _techLevel;
 		private int _conditionYellowHealth;
 		private int _conditionRedHealth;
 
-		public BuildingDrawable(IniFile.IniSection rules, IniFile.IniSection art)
-			: base(rules, art) {
-			_random = new Random();
+		public BuildingDrawable(ModConfig config, VirtualFileSystem vfs, IniFile.IniSection rules, IniFile.IniSection art)
+			: base(config, vfs, rules, art) {
 		}
 
 		public override void LoadFromRules() {
@@ -72,7 +70,7 @@ namespace CNCMaps.Engine.Game {
 			}
 			Props.SortIndex = Art.ReadInt("NormalYSort") - Art.ReadInt("NormalZAdjust"); // "main" building image before anims
 			Props.ZShapePointMove = Art.ReadPoint("ZShapePointMove");
-			
+
 			_canBeOccupied= Rules.ReadBool("CanBeOccupied");
 			_techLevel = Rules.ReadInt("TechLevel");
 			_conditionYellowHealth = 128;
@@ -88,11 +86,11 @@ namespace CNCMaps.Engine.Game {
 					_conditionRedHealth = (int)(256 * (double)conditionRed / 100);
 				}
 			}
-			_baseShp = new ShpDrawable(Rules, Art);
+			_baseShp = new ShpDrawable(_config, _vfs, Rules, Art);
 			_baseShp.OwnerCollection = OwnerCollection;
 			_baseShp.LoadFromArtEssential();
 			_baseShp.Props = Props;
-			_baseShp.Shp = VFS.Open<ShpFile>(_baseShp.GetFilename());
+			_baseShp.Shp = _vfs.Open<ShpFile>(_baseShp.GetFilename());
 
 			var extraProps = Props.Clone();
 			extraProps.SortIndex = 0;
@@ -110,8 +108,8 @@ namespace CNCMaps.Engine.Game {
 				}
 			}
 
-			// Starkku: New code for adding fire animations to buildings, supports custom-paletted animations.
-			if (OwnerCollection.Engine >= EngineType.RedAlert2)
+			// RA2 and later support adding fire animations to buildings, supports custom-paletted animations.
+			if (_config.Engine >= EngineType.RedAlert2)
 				LoadFireAnimations();
 
 			// Add turrets
@@ -120,22 +118,22 @@ namespace CNCMaps.Engine.Game {
 				IniFile.IniSection turretArt = OwnerCollection.Art.GetOrCreateSection(turretName);
 				if (turretArt.HasKey("Image"))
 					turretName = turretArt.ReadString("Image");
-                // Starkku: NewTheater/generic image fallback support for turrets.
-                string turretNameShp = NewTheater ? OwnerCollection.ApplyNewTheaterIfNeeded(turretName, turretName + ".shp") : turretName + ".shp";
+				// NewTheater/generic image fallback support for turrets.
+				string turretNameShp = NewTheater ? OwnerCollection.ApplyNewTheaterIfNeeded(turretName, turretName + ".shp") : turretName + ".shp";
 				Drawable turret = Rules.ReadBool("TurretAnimIsVoxel")
-					? (Drawable)new VoxelDrawable(VFS.Open<VxlFile>(turretName + ".vxl"), VFS.Open<HvaFile>(turretName + ".hva"))
-					: new ShpDrawable(VFS.Open<ShpFile>(turretNameShp));
+					? (Drawable)new VoxelDrawable(_config, _vfs.Open<VxlFile>(turretName + ".vxl"), _vfs.Open<HvaFile>(turretName + ".hva"))
+					: (Drawable)new ShpDrawable(new ShpRenderer(_config, _vfs), _vfs.Open<ShpFile>(turretNameShp));
 				turret.Props.Offset = Props.Offset + new Size(Rules.ReadInt("TurretAnimX"), Rules.ReadInt("TurretAnimY"));
 				turret.Props.HasShadow = Rules.ReadBool("UseTurretShadow");
 				turret.Props.FrameDecider = FrameDeciders.TurretFrameDecider;
 				turret.Props.ZAdjust = Rules.ReadInt("TurretAnimZAdjust");
-                turret.Props.Cloakable = Props.Cloakable;
+				turret.Props.Cloakable = Props.Cloakable;
 				SubDrawables.Add(turret);
 
 				if (turret is VoxelDrawable && turretName.ToUpper().Contains("TUR")) {
 					string barrelName = turretName.Replace("TUR", "BARL");
-					if (VFS.Exists(barrelName + ".vxl")) {
-						var barrel = new VoxelDrawable(VFS.Open<VxlFile>(barrelName + ".vxl"), VFS.Open<HvaFile>(barrelName + ".hva"));
+					if (_vfs.FileExists(barrelName + ".vxl")) {
+						var barrel = new VoxelDrawable(_config, _vfs.Open<VxlFile>(barrelName + ".vxl"), _vfs.Open<HvaFile>(barrelName + ".hva"));
 						SubDrawables.Add(barrel);
 						barrel.Props = turret.Props;
 					}
@@ -147,9 +145,9 @@ namespace CNCMaps.Engine.Game {
 				var bibImg = Art.ReadString("BibShape") + ".shp";
 				if (NewTheater)
 					bibImg = OwnerCollection.ApplyNewTheaterIfNeeded(bibImg, bibImg);
-				var bibShp = VFS.Open<ShpFile>(bibImg);
+				var bibShp = _vfs.Open<ShpFile>(bibImg);
 				if (bibShp != null) {
-					var bib = new ShpDrawable(bibShp);
+					var bib = new ShpDrawable(new ShpRenderer(_config, _vfs), bibShp);
 					bib.Props = this.Props.Clone();
 					bib.Flat = true;
 					SubDrawables.Add(bib);
@@ -178,7 +176,7 @@ namespace CNCMaps.Engine.Game {
 
 			IniFile.IniSection extraRules = OwnerCollection.Rules.GetOrCreateSection(animSection);
 			IniFile.IniSection extraArt = OwnerCollection.Art.GetOrCreateSection(animSection);
-			var anim = new AnimDrawable(extraRules, extraArt);
+			var anim = new AnimDrawable(_config, _vfs, extraRules, extraArt);
 			anim.OwnerCollection = OwnerCollection;
 			anim.LoadFromRules();
 
@@ -197,7 +195,7 @@ namespace CNCMaps.Engine.Game {
 			anim.Props.ZAdjust = Art.ReadInt(extraImage + "ZAdjust");
 			anim.IsBuildingPart = true;
 
-			anim.Shp = VFS.Open<ShpFile>(anim.GetFilename());
+			anim.Shp = _vfs.Open<ShpFile>(anim.GetFilename());
 			return anim;
 		}
 
@@ -219,14 +217,14 @@ namespace CNCMaps.Engine.Game {
 
 			IniFile.IniSection upgRules = OwnerCollection.Rules.GetOrCreateSection(upgradeName);
 			IniFile.IniSection upgArt = OwnerCollection.Art.GetOrCreateSection(upgradeName);
-			AnimDrawable upgrade = new AnimDrawable(upgRules, upgArt);
+			AnimDrawable upgrade = new AnimDrawable(_config, _vfs, upgRules, upgArt);
 			upgrade.OwnerCollection = OwnerCollection;
 			upgrade.Props = inheritProps;
 			upgrade.LoadFromRules();
 			upgrade.NewTheater = this.NewTheater;
 			upgrade.IsBuildingPart = true;
-            string shpfilename = NewTheater ? OwnerCollection.ApplyNewTheaterIfNeeded(upgradeName, upgradeName + ".shp") : upgradeName + ".shp";
-			upgrade.Shp = VFS.Open<ShpFile>(shpfilename);
+			string shpfilename = NewTheater ? OwnerCollection.ApplyNewTheaterIfNeeded(upgradeName, upgradeName + ".shp") : upgradeName + ".shp";
+			upgrade.Shp = _vfs.Open<ShpFile>(shpfilename);
 			Point powerupOffset = new Point(_powerupSlots[upgradeSlot].X, _powerupSlots[upgradeSlot].Y);
 			upgrade.Props.Offset.Offset(powerupOffset);
 			return upgrade;
@@ -242,40 +240,37 @@ namespace CNCMaps.Engine.Game {
 					break;
 
 				string[] coords = dfo.Split(new[] { ',', '.' }, StringSplitOptions.RemoveEmptyEntries);
-				string fireAnim = OwnerCollection.FireNames[_random.Next(OwnerCollection.FireNames.Length)];
+				string fireAnim = OwnerCollection.FireNames[Rand.Next(OwnerCollection.FireNames.Length)];
 				IniFile.IniSection fireArt = OwnerCollection.Art.GetOrCreateSection(fireAnim);
 
-				var fire = new AnimDrawable(Rules, Art, VFS.Open<ShpFile>(fireAnim + ".shp"));
+				var fire = new AnimDrawable(_config, _vfs, Rules, Art, _vfs.Open<ShpFile>(fireAnim + ".shp"));
 				fire.Props.PaletteOverride = GetCustomPalette(fireArt);
-				fire.Props.Offset = new Point(Int32.Parse(coords[0]), Int32.Parse(coords[1]));
+				fire.Props.Offset = new Point(Int32.Parse(coords[0]) + (_config.TileWidth / 2), Int32.Parse(coords[1]));
 				fire.Props.FrameDecider = FrameDeciders.RandomFrameDecider;
 				_fires.Add(fire);
 			}
 		}
 
 		/* Finds out the correct name for an animation palette to use with fire animations.
-		 * Reason why this is so complicated is because NPatch & Ares, the YR logic extensions that support custom animation palettes
+		 * Reason why this is so complicated is because with NPatch & Ares, the YR logic extensions that support custom animation palettes
 		 * use different name for the flag declaring the palette. (NPatch uses 'Palette' whilst Ares uses 'CustomPalette' to make it distinct
 		 * from the custom object palettes).
 		 */
 		private Palette GetCustomPalette(IniFile.IniSection animation) {
-            // Starkku: Altered as a part of a fix for crash that happened if custom palette was declared but file wasn't there.
-            Palette pal = null;
-            if (animation.ReadString("Palette") != "")
-            {
-                pal = OwnerCollection.Palettes.GetCustomPalette(animation.ReadString("Palette"));
-                if (pal == null) pal = OwnerCollection.Palettes.AnimPalette;
-            }
-            else if (animation.ReadString("CustomPalette") != "")
-            {
-                pal = OwnerCollection.Palettes.GetCustomPalette(animation.ReadString("CustomPalette"));
-                if (pal == null) pal = OwnerCollection.Palettes.AnimPalette;
-            }
-            else if (animation.ReadString("AltPalette") != "")
-                pal = OwnerCollection.Palettes.UnitPalette;
-            else
-                pal = OwnerCollection.Palettes.AnimPalette;
-            return pal;
+			Palette pal = null;
+			if (animation.ReadString("Palette") != "") {
+				pal = OwnerCollection.Palettes.GetCustomPalette(animation.ReadString("Palette"));
+				if (pal == null) pal = OwnerCollection.Palettes.AnimPalette;
+			}
+			else if (animation.ReadString("CustomPalette") != "") {
+				pal = OwnerCollection.Palettes.GetCustomPalette(animation.ReadString("CustomPalette"));
+				if (pal == null) pal = OwnerCollection.Palettes.AnimPalette;
+			}
+			else if (animation.ReadString("AltPalette") != "")
+				pal = OwnerCollection.Palettes.UnitPalette;
+			else
+				pal = OwnerCollection.Palettes.AnimPalette;
+			return pal;
 		}
 
 		public override void Draw(GameObject obj, DrawingSurface ds, bool shadows = true) {
@@ -283,7 +278,7 @@ namespace CNCMaps.Engine.Game {
 				return;
 
 			// RA2/YR building rubble
-			if (obj is StructureObject && (obj as StructureObject).Health == 0 && OwnerCollection.Engine >= EngineType.RedAlert2 && _baseShp.Shp != null) {
+			if (obj is StructureObject && (obj as StructureObject).Health == 0 && _config.Engine >= EngineType.RedAlert2 && _baseShp.Shp != null) {
 				ShpDrawable rubble = (ShpDrawable)_baseShp.Clone();
 				rubble.Props = _baseShp.Props.Clone();
 				rubble.Shp.Initialize();
@@ -308,7 +303,7 @@ namespace CNCMaps.Engine.Game {
 				}
 				_baseShp.Props.FrameDecider = FrameDeciders.BaseBuildingFrameDecider(isDamaged);
 
-				if (OwnerCollection.Engine >= EngineType.RedAlert2) {
+				if (_config.Engine >= EngineType.RedAlert2) {
 					if (isDamaged) isOnFire = true;
 					if (health > _conditionRedHealth && _canBeOccupied) isOnFire = false;
 				}
@@ -388,7 +383,7 @@ namespace CNCMaps.Engine.Game {
 			foreach (var d in parts)
 				d.DrawBoundingBox(obj, gfx);
 		}
-}
+	}
 
 	public class PowerupSlot {
 		public int X { get; set; }

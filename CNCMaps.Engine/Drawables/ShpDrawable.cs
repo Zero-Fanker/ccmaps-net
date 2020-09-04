@@ -1,58 +1,60 @@
-﻿using System;
-using System.Drawing;
+﻿using System.Drawing;
 using System.Linq;
-using CNCMaps.Engine.Drawables;
+using CNCMaps.Engine.Game;
 using CNCMaps.Engine.Map;
 using CNCMaps.Engine.Rendering;
 using CNCMaps.FileFormats;
+using CNCMaps.FileFormats.VirtualFileSystem;
 using CNCMaps.Shared;
+using CNCMaps.Shared.Utility;
 
-namespace CNCMaps.Engine.Game {
+namespace CNCMaps.Engine.Drawables {
 	class ShpDrawable : Drawable {
-		private Random random;
 
 		public ShpFile Shp { get; set; }
+		protected readonly ShpRenderer _renderer;
 
-		public ShpDrawable(IniFile.IniSection rules, IniFile.IniSection art)
-			: base(rules, art) {
-			random = new Random();
+		public ShpDrawable(ModConfig config, VirtualFileSystem vfs, IniFile.IniSection rules, IniFile.IniSection art, ShpFile shpFile = null)
+			: base(config, vfs, rules, art) {
+			_renderer =  new ShpRenderer(config, vfs);
+			Shp = shpFile;
 		}
 
-		public ShpDrawable(ShpFile shpFile) {
+		public ShpDrawable(ShpRenderer renderer, ShpFile shpFile) {
+			_renderer = renderer;
 			Shp = shpFile;
-			random = new Random();
-		}
-
-		public ShpDrawable(IniFile.IniSection rules, IniFile.IniSection art, ShpFile shpFile)
-			: base(rules, art) {
-			Shp = shpFile;
-			random = new Random();
 		}
 
 		public override void Draw(GameObject obj, DrawingSurface ds, bool shadow = true) {
 			if (InvisibleInGame || Shp == null) return;
+			Size onBridgeOffset = Size.Empty;
 			if (OwnerCollection != null && OwnerCollection.Type == CollectionType.Infantry) {
 				int randomDir = -1;
-				if (ModConfig.ActiveConfig.ExtraOptions.FirstOrDefault() != null && ModConfig.ActiveConfig.ExtraOptions.FirstOrDefault().EnableRandomInfantryFacing)
-					randomDir = random.Next(256);
+				if (_config.ExtraOptions.FirstOrDefault() != null && _config.ExtraOptions.FirstOrDefault().EnableRandomInfantryFacing)
+					randomDir = Rand.Next(256);
 				Props.FrameDecider = FrameDeciders.InfantryFrameDecider(Ready_Start, Ready_Count, Ready_CountNext, randomDir);
+				if (obj is OwnableObject && (obj as OwnableObject).OnBridge)
+					onBridgeOffset = new Size(0, -4 * _config.TileHeight / 2);
 			}
+
+			Props.Offset += onBridgeOffset;
 			if (Props.HasShadow && shadow && !Props.Cloakable)
-				ShpRenderer.DrawShadow(obj, Shp, Props, ds);
-			ShpRenderer.Draw(Shp, obj, this, Props, ds, Props.Cloakable ? 50 : 0);
+				_renderer.DrawShadow(obj, Shp, Props, ds);
+			_renderer.Draw(Shp, obj, this, Props, ds, Props.Cloakable ? 50 : 0);
+			Props.Offset -= onBridgeOffset;
 		}
 
 		public override void DrawShadow(GameObject obj, DrawingSurface ds) {
 			if (InvisibleInGame || Shp == null) return;
 			if (Props.HasShadow && !Props.Cloakable)
-				ShpRenderer.DrawShadow(obj, Shp, Props, ds);
+				_renderer.DrawShadow(obj, Shp, Props, ds);
 		}
 
 		public override Rectangle GetBounds(GameObject obj) {
 			if (InvisibleInGame || Shp == null) return Rectangle.Empty;
 
-			var bounds = ShpRenderer.GetBounds(obj, Shp, Props);
-			bounds.Offset(obj.Tile.Dx * TileWidth / 2, (obj.Tile.Dy - obj.Tile.Z) * TileHeight / 2);
+			var bounds = _renderer.GetBounds(obj, Shp, Props);
+			bounds.Offset(obj.Tile.Dx * _config.TileWidth / 2, (obj.Tile.Dy - obj.Tile.Z) * _config.TileHeight / 2);
 			bounds.Offset(Props.GetOffset(obj));
 			return bounds;
 		}
@@ -62,7 +64,7 @@ namespace CNCMaps.Engine.Game {
 			if (TheaterExtension)
 				fn += ModConfig.ActiveTheater.Extension;
 			else
-				fn+= ".shp";
+				fn += ".shp";
 			if (NewTheater)
 				fn = OwnerCollection.ApplyNewTheaterIfNeeded(Art.Name, fn);
 			return fn;

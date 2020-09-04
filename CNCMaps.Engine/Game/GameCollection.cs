@@ -3,13 +3,15 @@ using System.Collections.Generic;
 using CNCMaps.Engine.Drawables;
 using CNCMaps.Engine.Map;
 using CNCMaps.FileFormats;
+using CNCMaps.FileFormats.VirtualFileSystem;
 using CNCMaps.Shared;
 
 namespace CNCMaps.Engine.Game {
 	public abstract class GameCollection {
 		public readonly CollectionType Type;
 		public readonly TheaterType Theater;
-		public readonly EngineType Engine;
+		protected readonly ModConfig _config;
+		protected readonly VirtualFileSystem _vfs;
 		public readonly IniFile Rules;
 		public readonly IniFile Art;
 		protected readonly List<Drawable> _drawables = new List<Drawable>();
@@ -17,10 +19,9 @@ namespace CNCMaps.Engine.Game {
 		private readonly Dictionary<string, Drawable> _drawablesDict = new Dictionary<string, Drawable>();
 		private readonly Dictionary<Drawable, bool> _drawableLoaded = new Dictionary<Drawable, bool>();
 
-		protected GameCollection() { }
-
-		protected GameCollection(CollectionType type, TheaterType theater, EngineType engine, IniFile rules, IniFile art) {
-			Engine = engine;
+		protected GameCollection(CollectionType type, TheaterType theater, ModConfig config, VirtualFileSystem vfs, IniFile rules, IniFile art) {
+			_config = config;
+			_vfs = vfs;
 			Theater = theater;
 			Type = type;
 			Rules = rules;
@@ -73,6 +74,6 @@ namespace CNCMaps.Engine.Game {
 		}
 
 		protected abstract Drawable MakeDrawable(string objName);
-		protected virtual void LoadDrawable(Drawable d) { 	}
+		protected virtual void LoadDrawable(Drawable d) { }
 	}
 }

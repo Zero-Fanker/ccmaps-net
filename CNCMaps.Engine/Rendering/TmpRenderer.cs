@@ -3,11 +3,17 @@ using System.Drawing;
 using CNCMaps.Engine.Drawables;
 using CNCMaps.Engine.Map;
 using CNCMaps.FileFormats;
+using CNCMaps.Shared;
 using NLog;
 
 namespace CNCMaps.Engine.Rendering {
 	class TmpRenderer {
+		private readonly ModConfig _config;
 		static Logger Logger = LogManager.GetCurrentClassLogger();
+
+		public TmpRenderer(ModConfig config) {
+			_config = config;
+		}
 
 		public static Rectangle GetBounds(MapTile tile, TmpFile tmp) {
 			if (tmp == null) return Rectangle.Empty;
@@ -30,7 +36,7 @@ namespace CNCMaps.Engine.Rendering {
 			return new Rectangle(left, top, width, height);
 		}
 
-		unsafe public static void Draw(MapTile tile, TmpFile tmp, DrawingSurface ds) {
+		unsafe public void Draw(MapTile tile, TmpFile tmp, DrawingSurface ds) {
 			tmp.Initialize();
 
 			if (tile.SubTile >= tmp.Images.Count) return;
@@ -77,7 +83,7 @@ namespace CNCMaps.Engine.Rendering {
 						*(w + 1) = p.Colors[paletteValue].G;
 						*(w + 2) = p.Colors[paletteValue].R;
 						zBuffer[zIdx] = zBufVal;
-						heightBuffer[zIdx] = (short)(tile.Z * Drawable.TileHeight / 2);
+						heightBuffer[zIdx] = (short)(tile.Z * _config.TileHeight / 2);
 					}
 					w += 3;
 					zIdx++;
@@ -100,7 +106,7 @@ namespace CNCMaps.Engine.Rendering {
 						*(w + 1) = p.Colors[paletteValue].G;
 						*(w + 2) = p.Colors[paletteValue].R;
 						zBuffer[zIdx] = zBufVal;
-						heightBuffer[zIdx] = (short)(tile.Z * Drawable.TileHeight / 2);
+						heightBuffer[zIdx] = (short)(tile.Z * _config.TileHeight / 2);
 					}
 					w += 3;
 					zIdx++;
@@ -141,15 +147,14 @@ namespace CNCMaps.Engine.Rendering {
 				for (x = 0; x < img.ExtraWidth; x++) {
 					// Checking per line is required because v needs to be checked every time
 					byte paletteValue = img.ExtraData[rIdx];
-                    // Starkku: Matched to formula with normal tile zdata one to fix several glitches with certain kind of tile setups.
-                    short zBufVal = (short)((tile.Rx + tile.Ry) * tmp.BlockHeight / 2 - (img.ExtraZData != null ? img.ExtraZData[rIdx] : 0));
+					short zBufVal = (short)((tile.Rx + tile.Ry) * tmp.BlockHeight / 2 - (img.ExtraZData != null ? img.ExtraZData[rIdx] : 0));
 
 					if (paletteValue != 0 && w_low <= w && w < w_high && zBufVal >= zBuffer[zIdx]) {
 						*w++ = p.Colors[paletteValue].B;
 						*w++ = p.Colors[paletteValue].G;
 						*w++ = p.Colors[paletteValue].R;
 						zBuffer[zIdx] = zBufVal;
-						heightBuffer[zIdx] = (short)(img.ExtraHeight - y + tile.Z * Drawable.TileHeight / 2);
+						heightBuffer[zIdx] = (short)(img.ExtraHeight - y + tile.Z * _config.TileHeight / 2);
 					}
 					else
 						w += 3;

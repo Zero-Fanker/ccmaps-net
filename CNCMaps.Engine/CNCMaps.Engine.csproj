@@ -76,7 +76,7 @@
     <Compile Include="..\CNCMaps.Shared\Properties\AssemblyInfoGlobal.cs">
       <Link>Properties\AssemblyInfoGlobal.cs</Link>
     </Compile>
-    <Compile Include="EngineSettings.cs" />
+    <Compile Include="RenderEngine.cs" />
     <Compile Include="Game\Defaults.cs" />
     <Compile Include="Game\FrameDeciders.cs" />
     <Compile Include="Game\GameCollection.cs" />
@@ -110,11 +110,14 @@
     <Compile Include="Game\PaletteCollection.cs" />
     <Compile Include="Drawables\ShpDrawable.cs" />
     <Compile Include="Rendering\ShpRenderer.cs" />
-    <Compile Include="Drawables\TmpDrawable.cs" />
+    <Compile Include="Drawables\TileDrawable.cs" />
     <Compile Include="Rendering\TmpRenderer.cs" />
     <Compile Include="Drawables\UnitDrawable.cs" />
     <Compile Include="Drawables\VoxelDrawable.cs" />
     <Compile Include="Rendering\VxlRenderer.cs" />
+    <Compile Include="Rendering\ZoomableCanvas.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
@@ -143,7 +146,6 @@
     <Compile Include="Types\WarHead.cs" />
     <Compile Include="Types\WeaponType.cs" />
     <Compile Include="Types\XYZ.cs" />
-    <Compile Include="Utility\FrameDeciderCompiler.cs" />
     <Compile Include="Utility\Hexagon.cs" />
     <Compile Include="Utility\HsvColor.cs" />
   </ItemGroup>

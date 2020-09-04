@@ -1,26 +1,28 @@
-set VER=2.3.1
-
-del CNCMaps_*.zip
-del CNCMaps_setup_*.exe
-del CNCMaps/bin/*.*
-del CNCMaps/obj/*.*
-del CNCMaps GUI/obj/*.*
-del CNCMaps GUI/obj/*.*
-
-set MSBUILD=%WINDIR%\Microsoft.NET\Framework\v4.0.30319\msbuild.exe
-REM MSBUILD="%PROGRAMFILES(X86)%\MSBuild\14.0\Bin\msbuild.exe"
+set VER=2.4.0
 set MAKENSIS="%PROGRAMFILES(X86)%\nsis\makensis.exe"
 
-%MSBUILD% CNCMaps.sln /p:Configuration=Release
+del CNCMaps_release_*.exe
+del CNCMaps_debug_*.exe
+rmdir /s /q CNCMaps.Engine\bin\
+rmdir /s /q CNCMaps.FileFormats\bin\
+rmdir /s /q CNCMaps.Renderer\bin\
+rmdir /s /q CNCMaps.Renderer.GUI\bin\
+rmdir /s /q CNCMaps.Shared\bin\
+
+set "VSINSTALLDIR=%PROGRAMFILES(X86)%\Microsoft Visual Studio\2017\Enterprise\"
+if not exist "%VSINSTALLDIR%" (
+set "VSINSTALLDIR=%PROGRAMFILES(X86)%\Microsoft Visual Studio\2017\Professional\"
+)
+if not exist "%VSINSTALLDIR%" (
+set "VSINSTALLDIR=%PROGRAMFILES(X86)%\Microsoft Visual Studio\2017\Community\"
+)
+set DevEnvDir=%VSINSTALLDIR%Common7\IDE\
+call "%VSINSTALLDIR%Common7\Tools\VsDevCmd.bat"
+msbuild kerfcheck.sln 
+
+msbuild CNCMaps.sln /t:restore /t:Build /p:Configuration=Release
 %MAKENSIS% nsisinstaller-rls.nsi
 
-call collect_generated.bat
-
 pause
-exit
-
-
-
-%MSBUILD% CNCMaps.sln /p:Configuration=Debug
-%MAKENSIS% nsisinstaller-dbg.nsi
-
+REM msbuild CNCMaps.sln /p:Configuration=Debug
+REM %MAKENSIS% nsisinstaller-dbg.nsi

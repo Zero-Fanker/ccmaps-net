@@ -14,27 +14,27 @@ namespace CNCMaps.Shared {
 
 		[NonSerialized]
 		private DynamicCustomTypeDescriptor _dctd = null;
-
-		public static ModConfig ActiveConfig { get; set; }
 		public static TheaterSettings ActiveTheater { get; private set; }
 
-		static ModConfig() { 
+		static ModConfig() {
 			DefaultsFS.Engine = EngineType.Firestorm;
 		}
 
-		public static void LoadDefaultConfig(EngineType engine) {
+		public static ModConfig GetDefaultConfig(EngineType engine) {
 			if (engine == EngineType.TiberianSun)
-				ActiveConfig = DefaultsTS;
+				return DefaultsTS;
 			else if (engine == EngineType.Firestorm)
-				ActiveConfig = DefaultsFS;
+				return DefaultsFS;
 			else if (engine == EngineType.RedAlert2)
-				ActiveConfig = DefaultsRA2;
+				return DefaultsRA2;
 			else if (engine == EngineType.YurisRevenge)
-				ActiveConfig = DefaultsYR;
+				return DefaultsYR;
+			else
+				throw new InvalidEnumArgumentException(nameof(engine));
 		}
 
-		public static bool SetActiveTheater(TheaterType theater) {
-			ActiveTheater = ActiveConfig.Theaters.First(t => t.Type == theater);
+		public bool SetActiveTheater(TheaterType theater) {
+			ActiveTheater = Theaters.First(t => t.Type == theater);
 			return ActiveTheater != null;
 		}
 
@@ -71,7 +71,6 @@ namespace CNCMaps.Shared {
 		[TypeConverter(typeof(CsvConverter))]
 		public List<string> ExtraMixes { get; set; }
 
-		// Starkku: Custom INI filename support that certain mods alas require to function correctly with the renderer.
 		[Id(5, 1)]
 		[Description("Custom rules.ini filenames that should be loaded specific to your mod. First one listed is primary one, overriding standard game file. Contents of the rest get merged to it. Can be entered as a comma-separated list.")]
 		[PropertyStateFlags((PropertyFlags.Default | PropertyFlags.ExpandIEnumerable) & ~PropertyFlags.SupportStandardValues)]
@@ -123,7 +122,7 @@ namespace CNCMaps.Shared {
 		private BindingList<ModOption> _modOptions;
 
 
-        public ModConfig() {
+		public ModConfig() {
 			Name = "Custom mod config";
 			Theaters = new BindingList<TheaterSettings>();
 			ObjectOverrides = new BindingList<ObjectOverride>();
@@ -164,6 +163,13 @@ namespace CNCMaps.Shared {
 			return ret;
 		}
 
+		public int TileWidth {
+			get { return Engine == EngineType.RedAlert2 || Engine == EngineType.YurisRevenge ? 60 : 48; }
+		}
+
+		public int TileHeight {
+			get { return Engine == EngineType.RedAlert2 || Engine == EngineType.YurisRevenge ? 30 : 24; }
+		}
 
 		#region Defaults per game
 
@@ -470,11 +476,6 @@ namespace CNCMaps.Shared {
 		public LightingType Lighting { get; set; }
 
 		[Id(7, 1)]
-		[Description("Compilable piece of C# code to determine a GameObjects frame")]
-		[EditorAttribute("System.ComponentModel.Design.MultilineStringEditor, System.Design", "System.Drawing.Design.UITypeEditor")]
-		public string FrameDeciderCode { get; set; }
-
-		[Id(8, 1)]
 		[Description("Priority of this override entry. Lower values indicate higher priority.")]
 		public int Priority { get; set; }
 
@@ -571,7 +572,7 @@ namespace CNCMaps.Shared {
 		}
 
 		public override string ToString() {
-			return string.Format("ModOption for DisableOreRandomization: " + _disableOreRandomization + " DisableTibRemap: " + _disableTibRemap 
+			return string.Format("ModOption for DisableOreRandomization: " + _disableOreRandomization + " DisableTibRemap: " + _disableTibRemap
 				+ " EnableRandomInfantryFacing: " + _enableRandomInfantryFacing + " BottomCrop: " + MapLocalSizeBottomCropValue + " LightingDelta: " + LightingAmbientRGBDelta);
 		}
 	}

@@ -54,10 +54,16 @@ namespace CNCMaps.FileFormats {
 			while (CanRead) {
 				ProcessLine(ReadLine());
 			}
+		}
+
+		public void LoadAresIncludes(VirtualFileSystem.VirtualFileSystem vfs) {
 			// support for Ares tag
 			var includes = GetOrCreateSection("#include");
-			foreach (var entry in includes.OrderedEntries)
-				MergeWith(VFS.Open<IniFile>(entry.Value));
+			foreach (var entry in includes.OrderedEntries) {
+				var include = vfs.Open<IniFile>(entry.Value);
+				include.LoadAresIncludes(vfs); // mechanism even works recursively!
+				MergeWith(include);
+			}
 		}
 
 		int ProcessLine(string line) {
@@ -258,8 +264,15 @@ namespace CNCMaps.FileFormats {
 			}
 
 			public Point ReadXY(string key) {
+				return ReadXY(key, new Point(0, 0));
+			}
+
+			public Point ReadXY(string key, Point defaultValue) {
 				string[] val = ReadString(key).Split(',');
-				return new Point(int.Parse(val[0]), int.Parse(val[1]));
+				if (val.Length == 2 && int.TryParse(val[0], out int x) && int.TryParse(val[1], out int y))
+					return new Point(int.Parse(val[0]), int.Parse(val[1]));
+				else
+					return defaultValue;
 			}
 
 			public short ReadShort(string key, short defaultValue = 0) {
@@ -319,8 +332,13 @@ namespace CNCMaps.FileFormats {
 			}
 
 			public T ReadEnum<T>(string key, T @default) {
-				if (HasKey(key))
-					return (T)Enum.Parse(typeof(T), ReadString(key));
+				if (HasKey(key)) {
+					try {
+						return (T)Enum.Parse(typeof(T), ReadString(key), true);
+					}
+					catch { /* invalid enum value */ }
+				}
+
 				return @default;
 			}
 
