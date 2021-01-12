@@ -111,7 +111,7 @@ namespace CNCMaps.Engine.Game {
 					direction = (obj as OwnableObject).Direction;
 
 				if (Facings == 8) {
-					frameoffset = (direction / 32) + 1;
+					frameoffset = (direction / 32) + (engine < EngineType.RedAlert2 ? 1 : 0);
 					if (frameoffset >= 8) frameoffset -= 8;
 				}
 
