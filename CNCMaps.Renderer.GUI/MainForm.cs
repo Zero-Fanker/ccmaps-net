@@ -38,7 +38,7 @@ namespace CNCMaps.GUI {
 			}
 			Settings.Default.SettingsKey = cfgPath;
 			InitializeComponent();
-
+			UpdateTranslations();
 
 			ConfigurationItemFactory.Default.Targets.RegisterDefinition("GuiTarget", typeof(GuiTarget));
 			if (LogManager.Configuration == null) {
@@ -52,6 +52,10 @@ namespace CNCMaps.GUI {
 				LogManager.Configuration.LoggingRules.Add(new LoggingRule("*", LogLevel.Debug, target));
 				LogManager.ReconfigExistingLoggers();
 			}
+		}
+
+		private void UpdateTranslations() {
+			lblInputMap.Text = Localizer.Translate(lblInputMap.Name);
 		}
 
 		public MainForm(bool skipUpdateCheck) : this() {
