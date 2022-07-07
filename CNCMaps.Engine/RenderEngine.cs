@@ -272,8 +272,9 @@ namespace CNCMaps.Engine {
 				_logger.Error(string.Format("An unknown fatal exception occurred: {0}", exc), exc);
 #if DEBUG
 				throw;
-#endif
+#else
 				return EngineResult.Exception;
+#endif
 			}
 			return EngineResult.RenderedOk;
 		}

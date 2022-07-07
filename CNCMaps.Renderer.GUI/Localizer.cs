@@ -9,21 +9,21 @@ namespace CNCMaps.GUI {
 	using StringDictionary = Dictionary<string, string>;
 	public class Localizer {
 		const string defaultLanguage = "ZH-CN";
-		string defaultLocalizationFile = Environment.CurrentDirectory + '/' + defaultLanguage + ".xml";
+		string defaultLocalizationFile = Environment.CurrentDirectory + '\\' + defaultLanguage + ".xml";
 
 		public static string Translate(string label) {
 			string ret;
-			if (inst == null) {
-				System.Windows.Forms.MessageBox.Show("inst is null");
+			if (instance() == null) {
+				return null;
 			}
-			if (inst.stringtable == null) {
-				System.Windows.Forms.MessageBox.Show("String table is null");
+			if (instance().stringtable == null) {
+				return null;
 			}
 			if (string.IsNullOrEmpty(label)) {
-				System.Windows.Forms.MessageBox.Show("Label is null");
+				return null;
 			}
-			inst.stringtable.TryGetValue(label, out ret);
-			return ret.Length > 0 ? ret : label;
+			instance().stringtable.TryGetValue(label, out ret);
+			return !string.IsNullOrEmpty(ret) ? ret : null;
 		}
 
 
@@ -36,12 +36,23 @@ namespace CNCMaps.GUI {
 		}
 
 		private void loadFromFile() {
-			var doc = XDocument.Load(defaultLocalizationFile);
-			var rootNodes = doc.Root.DescendantNodes().OfType<XElement>();
-			stringtable = rootNodes.ToDictionary(n => n.Name.ToString(), n => n.Value);
+			try {
+				var doc = XDocument.Load(defaultLocalizationFile);
+				var rootNodes = doc.Root.DescendantNodes().OfType<XElement>();
+				stringtable = rootNodes.ToDictionary(n => n.Name.ToString(), n => n.Value);
+			} catch {
+
+			}
 		}
 
-		private static readonly Localizer inst = new Localizer();
+		private static Localizer instance() {
+			if (inst == null) {
+				inst = new Localizer();
+			}
+			return inst;
+		}
+
+		private static Localizer inst;
 
 		StringDictionary stringtable = new StringDictionary();
 	}

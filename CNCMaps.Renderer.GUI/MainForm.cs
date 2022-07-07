@@ -55,7 +55,24 @@ namespace CNCMaps.GUI {
 		}
 
 		private void UpdateTranslations() {
-			lblInputMap.Text = Localizer.Translate(lblInputMap.Name);
+			void translate(Control control) {
+				var ret = Localizer.Translate(control.Name);
+				if (ret != null) {
+					control.Text = ret;
+				}
+				foreach (var obj in control.Controls) {
+					var subControl = obj as Control;
+					if (subControl != null) {
+						translate(subControl);
+					}
+				}
+			}
+			translate(this);
+			translate(tpMain);
+			translate(tpMisc);
+			translate(tpBatch);
+			translate(tpLog);
+			translate(tpAbout);
 		}
 
 		public MainForm(bool skipUpdateCheck) : this() {
