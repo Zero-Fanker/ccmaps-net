@@ -26,6 +26,11 @@ namespace CNCMaps.GUI {
 			return !string.IsNullOrEmpty(ret) ? ret : null;
 		}
 
+		public static string TryTranslate(string label, string original) {
+			string ret = Translate(label);
+			return string.IsNullOrEmpty(ret) ? original : ret;
+		}
+
 
 		private Localizer() {
 			init();
@@ -41,7 +46,7 @@ namespace CNCMaps.GUI {
 				var rootNodes = doc.Root.DescendantNodes().OfType<XElement>();
 				stringtable = rootNodes.ToDictionary(n => n.Name.ToString(), n => n.Value);
 			} catch {
-
+				System.Windows.Forms.MessageBox.Show("Could not load localization file");
 			}
 		}
 

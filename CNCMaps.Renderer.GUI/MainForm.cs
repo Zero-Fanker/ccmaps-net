@@ -73,6 +73,8 @@ namespace CNCMaps.GUI {
 			translate(tpBatch);
 			translate(tpLog);
 			translate(tpAbout);
+			translate(lblCopyright);
+			translate(lblBatchDesc);
 		}
 
 		public MainForm(bool skipUpdateCheck) : this() {
@@ -100,7 +102,7 @@ namespace CNCMaps.GUI {
 			if (!_skipUpdateCheck && !Settings.Default.skipupdatecheck)
 				PerformUpdateCheck();
 			else
-				UpdateStatus("not checking for newer version", 100);
+				UpdateStatus(Localizer.TryTranslate("lblStatusNotCheck", "not checking for newer version"), 100);
 			tbInput.Text = Settings.Default.input;
 			tbMixDir.Text = Settings.Default.mixdir;
 			cbOutputJPG.Checked = Settings.Default.outputjpg;
@@ -265,7 +267,7 @@ namespace CNCMaps.GUI {
 			uc.AlreadyLatest += (o, e) => UpdateStatus("already latest version", 100);
 			uc.Connected += (o, e) => UpdateStatus("connected", 10);
 			uc.DownloadProgressChanged += (o, e) => { /* care, xml is small anyway */ };
-			uc.UpdateCheckFailed += (o, e) => UpdateStatus("update check failed", 100);
+			uc.UpdateCheckFailed += (o, e) => UpdateStatus(Localizer.TryTranslate("lblStatusFailed", "update check failed"), 100);
 			uc.UpdateAvailable += (o, e) => {
 				UpdateStatus("update available", 100);
 
@@ -326,7 +328,7 @@ namespace CNCMaps.GUI {
                     return;
 				}
 
-				lblStatus.Text = "Status: " + text;
+				lblStatus.Text = Localizer.TryTranslate("lblStatusPrefix", "Status: ") + text;
 				if (progressBarValue < 100)
                     // forces 'instant update'
                     pbProgress.Value = progressBarValue + 1;
